@@ -3,12 +3,12 @@
 // @namespace    https://github.com/rktccn/treehollowEnhance
 // @supportURL   https://github.com/rktccn/treehollowEnhance
 // @homepageURL  https://github.com/rktccn/treehollowEnhance
-// @version      0.1.3
+// @version      0.1.6
 // @description  抒发森林增强,只看洞主，下载图片
 // @author       RoIce
 // @match        *://web.treehollow.net/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=greasespot.net
-// @grant        GM_log
+// @grant        GM_addStyle
 // @run-at       document-start
 // @license      MIT
 // ==/UserScript==
@@ -16,6 +16,10 @@
 (function () {
   "use strict";
   // Your code here...
+  let css = `.active{
+    background-color: rgb(243, 142, 4) !important;
+  }`;
+  GM_addStyle(css);
 
   // 原始数据
   let originalreplyList = [];
@@ -152,6 +156,10 @@
     element.style.cssText =
       "margin-bottom: 16px; background-color: #53A13C; border-radius: 5px;  cursor: pointer; display: inline-block; font-size: 17px; font-weight: 400;;;; width: 50px;line-height: 1.2; padding: 17px 14px; text-align: center; text-decoration: none; color: #fff;";
 
+    if (text === "只看洞主" && data.onlyDZ) {
+      element.classList.add("active");
+    }
+
     element.addEventListener("click", callback);
     container.appendChild(element);
   };
@@ -165,13 +173,14 @@
   };
 
   // 点击只看洞主
-  const clickDZ = () => {
+  const clickDZ = (e) => {
     if (data.onlyDZ) {
       data.onlyDZ = false;
       // 刷新页面
       location.reload();
     } else {
       data.onlyDZ = true;
+      e.target.classList.add("active");
       for (let i = 0; i < replyNodes.length; i++) {
         const reply = replyNodes[i];
         seeDZ(reply);
@@ -227,17 +236,18 @@
     targetNode[0].scrollTo({ x: 5, y: 5, animated: true });
   };
 
-  if (window.location.pathname == "/HoleDetail") {
-    getOriginalData();
-    checkLoad().then((res) => {
-      removeButton();
-      replyNodes = getReply();
-      listenReplayCount();
-      addButton("只看洞主", clickDZ);
-      addButton("下载图片", addImgWindow);
-      addButton("回到顶部", goTop);
-    });
-  }
+  // removeButton();
+  // if (window.location.pathname == "/HoleDetail") {
+  //   getOriginalData();
+  //   checkLoad().then((res) => {
+  //     replyNodes = getReply();
+  //     listenReplayCount();
+  //     removeButton();
+  //     addButton("只看洞主", clickDZ);
+  //     addButton("下载图片", addImgWindow);
+  //     addButton("回到顶部", goTop);
+  //   });
+  // }
 
   /**
    * 重写history的pushState和replaceState
@@ -274,12 +284,15 @@
       checkLoad().then((res) => {
         replyNodes = getReply();
         listenReplayCount();
+        removeButton();
+
         addButton("只看洞主", clickDZ);
         addButton("下载图片", addImgWindow);
         addButton("回到顶部", goTop);
       });
     }
   });
+
   window.addEventListener("replaceState", function (e) {
     removeButton();
     if (window.location.pathname == "/HoleDetail") {
@@ -287,6 +300,7 @@
       checkLoad().then((res) => {
         replyNodes = getReply();
         listenReplayCount();
+        removeButton();
         addButton("只看洞主", clickDZ);
         addButton("下载图片", addImgWindow);
         addButton("回到顶部", goTop);

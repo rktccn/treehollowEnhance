@@ -1,20 +1,23 @@
 // ==UserScript==
-// @name         抒发森林增强
-// @namespace    RoIce
-// @version      0.1.2
+// @name         抒发森林增强 - test
+// @namespace    https://github.com/rktccn/treehollowEnhance
+// @supportURL   https://github.com/rktccn/treehollowEnhance
+// @homepageURL  https://github.com/rktccn/treehollowEnhance
+// @version      0.1.3
 // @description  抒发森林增强,只看洞主，下载图片
 // @author       RoIce
-// @match        *://web.treehollow.net/HoleDetail*
+// @match        *://web.treehollow.net/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=greasespot.net
 // @grant        GM_log
 // @run-at       document-start
+// @license      MIT
 // ==/UserScript==
 
 (function () {
   "use strict";
   // Your code here...
 
-  // 回复原始数据
+  // 原始数据
   let originalreplyList = [];
 
   // 回复内容
@@ -55,18 +58,19 @@
     }
   }
 
-  addXMLRequestCallback(function (xhr) {
-    xhr.addEventListener("load", function () {
-      if (xhr.readyState == 4 && xhr.status == 200) {
-        // console.log( xhr.responseURL );
-        if (xhr.responseURL.includes("holes/detail")) {
-          //do something!
-          originalreplyList = JSON.parse(xhr.response).replies;
-          // console.log(originalreplyList);
+  // 获取原数据
+  function getOriginalData() {
+    addXMLRequestCallback(function (xhr) {
+      xhr.addEventListener("load", function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          if (xhr.responseURL.includes("holes/detail")) {
+            //do something!
+            originalreplyList = JSON.parse(xhr.response).replies;
+          }
         }
-      }
+      });
     });
-  });
+  }
 
   // 检测是否加载完成,异步调用
   const checkLoad = () =>
@@ -152,6 +156,14 @@
     container.appendChild(element);
   };
 
+  // 移除按钮
+  const removeButton = () => {
+    let container = document.getElementsByClassName("button-container")[0];
+    if (container !== undefined) {
+      container.remove();
+    }
+  };
+
   // 点击只看洞主
   const clickDZ = () => {
     if (data.onlyDZ) {
@@ -176,6 +188,7 @@
         imgList.push(`https://img.treehollow.net/${item.image.src}`);
       }
     });
+
     return imgList;
   };
 
@@ -214,11 +227,70 @@
     targetNode[0].scrollTo({ x: 5, y: 5, animated: true });
   };
 
-  checkLoad().then((res) => {
-    replyNodes = getReply();
-    listenReplayCount();
-    addButton("只看洞主", clickDZ);
-    addButton("下载图片", addImgWindow);
-    addButton("回到顶部", goTop);
+  if (window.location.pathname == "/HoleDetail") {
+    getOriginalData();
+    checkLoad().then((res) => {
+      removeButton();
+      replyNodes = getReply();
+      listenReplayCount();
+      addButton("只看洞主", clickDZ);
+      addButton("下载图片", addImgWindow);
+      addButton("回到顶部", goTop);
+    });
+  }
+
+  /**
+   * 重写history的pushState和replaceState
+   * @param action pushState|replaceState
+   * @return {function(): *}
+   */
+  function wrapState(action) {
+    // 获取原始定义
+    let raw = history[action];
+    return function () {
+      // 经过包装的pushState或replaceState
+      let wrapper = raw.apply(this, arguments);
+
+      // 定义名为action的事件
+      let e = new Event(action);
+
+      // 将调用pushState或replaceState时的参数作为stateInfo属性放到事件参数event上
+      e.stateInfo = { ...arguments };
+      // 调用pushState或replaceState时触发该事件
+      window.dispatchEvent(e);
+      return wrapper;
+    };
+  }
+
+  //修改原始定义
+  history.pushState = wrapState("pushState");
+  history.replaceState = wrapState("replaceState");
+
+  // 监听自定义的事件
+  window.addEventListener("pushState", function (e) {
+    removeButton();
+    if (window.location.pathname == "/HoleDetail") {
+      getOriginalData();
+      checkLoad().then((res) => {
+        replyNodes = getReply();
+        listenReplayCount();
+        addButton("只看洞主", clickDZ);
+        addButton("下载图片", addImgWindow);
+        addButton("回到顶部", goTop);
+      });
+    }
+  });
+  window.addEventListener("replaceState", function (e) {
+    removeButton();
+    if (window.location.pathname == "/HoleDetail") {
+      getOriginalData();
+      checkLoad().then((res) => {
+        replyNodes = getReply();
+        listenReplayCount();
+        addButton("只看洞主", clickDZ);
+        addButton("下载图片", addImgWindow);
+        addButton("回到顶部", goTop);
+      });
+    }
   });
 })();

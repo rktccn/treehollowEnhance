@@ -15,7 +15,7 @@
   // Your code here...
 
   // 回复原始数据
-  let originalreplyList = [];
+  // let originalreplyList = [];
 
   // 回复内容
   let replyList = [];

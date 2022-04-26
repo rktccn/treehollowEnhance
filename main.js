@@ -16,6 +16,7 @@
 (function () {
   "use strict";
   // Your code here...
+
   let css = `.active{
     background-color: rgb(243, 142, 4) !important;
   }`;
@@ -137,16 +138,19 @@
 
   // 只看洞主,只显示name为 洞主 的回帖
   const seeDZ = (reply, hide) => {
-    let userName = reply.getElementsByClassName(
-      "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
-    )[0]?.innerText;
+    let userName =
+      reply.getElementsByClassName(
+        "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
+      )[0]?.innerText ||
+      reply.getElementsByClassName("css-1dbjc4n r-dta0w2")[0]?.firstElementChild
+        ?.innerText;
 
     if (!userName) {
       throw new Error("没有找到用户名");
     }
 
     if (hide) {
-      if (userName !== "洞主") {
+      if (userName.trim() !== "洞主") {
         reply.style.display = "none";
       }
     } else {
@@ -305,6 +309,7 @@
   // 监听自定义的事件
   window.addEventListener("pushState", function (e) {
     removeButton();
+
     if (window.location.pathname == "/HoleDetail") {
       getOriginalData();
 

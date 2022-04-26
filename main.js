@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         抒发森林增强 - test
+// @name         抒发森林增强
 // @namespace    https://github.com/rktccn/treehollowEnhance
 // @supportURL   https://github.com/rktccn/treehollowEnhance
 // @homepageURL  https://github.com/rktccn/treehollowEnhance

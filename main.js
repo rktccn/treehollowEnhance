@@ -146,15 +146,24 @@
         ?.innerText;
 
     if (!userName) {
+      console.log(
+        `element:${
+          reply.getElementsByClassName(
+            "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
+          ).inner ||
+          reply.getElementsByClassName("css-1dbjc4n r-dta0w2")
+            ?.firstElementChild
+        }`
+      );
       throw new Error("没有找到用户名");
     }
 
     if (hide) {
       if (userName.trim() !== "洞主") {
-        reply.style.display = "none";
+        reply.parentNode.style.display = "none";
       }
     } else {
-      reply.style.display = "";
+      reply.parentNode.style.display = "";
     }
   };
 

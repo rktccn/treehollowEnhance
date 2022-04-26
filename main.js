@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         抒发森林增强
+// @name         抒发森林增强 - test
 // @namespace    https://github.com/rktccn/treehollowEnhance
 // @supportURL   https://github.com/rktccn/treehollowEnhance
 // @homepageURL  https://github.com/rktccn/treehollowEnhance
-// @version      0.1.6
+// @version      0.1.8
 // @description  抒发森林增强,只看洞主，下载图片
 // @author       RoIce
 // @match        *://web.treehollow.net/*
@@ -69,7 +69,12 @@
         if (xhr.readyState == 4 && xhr.status == 200) {
           if (xhr.responseURL.includes("holes/detail")) {
             //do something!
+
             originalreplyList = JSON.parse(xhr.response).replies;
+            if (!originalreplyList?.length) {
+              originalreplyList = [];
+              throw new Error("获取源数据失败或没有回复");
+            }
           }
         }
       });
@@ -98,9 +103,15 @@
     );
     replyList = [];
 
+    if (!targetNode) {
+      throw new Error("获取回复失败");
+    }
+
+    // 只看洞主
     if (data.onlyDZ) {
+      if (replyNodes?.length === 0) return;
       for (let i = 0; i < targetNode.length; i++) {
-        seeDZ(targetNode[i]);
+        seeDZ(targetNode[i], data.onlyDZ);
       }
     }
 
@@ -116,10 +127,7 @@
     const config = { childList: true };
 
     const callBack = (mutationsList, observer) => {
-      //   removeFloor();
       replyNodes = getReply();
-      //   addFloor();
-      //   addReplyEvent();
     };
 
     const observer = new MutationObserver(callBack);
@@ -128,13 +136,21 @@
   };
 
   // 只看洞主,只显示name为 洞主 的回帖
-  const seeDZ = (reply) => {
+  const seeDZ = (reply, hide) => {
     let userName = reply.getElementsByClassName(
       "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
-    )[0].innerText;
+    )[0]?.innerText;
 
-    if (userName !== "洞主") {
-      reply.style.display = "none";
+    if (!userName) {
+      throw new Error("没有找到用户名");
+    }
+
+    if (hide) {
+      if (userName !== "洞主") {
+        reply.style.display = "none";
+      }
+    } else {
+      reply.style.display = "";
     }
   };
 
@@ -174,16 +190,26 @@
 
   // 点击只看洞主
   const clickDZ = (e) => {
+    if (originalreplyList?.length === 0) return;
+
     if (data.onlyDZ) {
       data.onlyDZ = false;
-      // 刷新页面
-      location.reload();
+
+      if (replyNodes?.length === 0) return;
+
+      // 显示内容
+      for (let i = 0; i < replyNodes.length; i++) {
+        const reply = replyNodes[i];
+        e.target.classList.remove("active");
+        seeDZ(reply, false);
+      }
     } else {
       data.onlyDZ = true;
       e.target.classList.add("active");
+
       for (let i = 0; i < replyNodes.length; i++) {
         const reply = replyNodes[i];
-        seeDZ(reply);
+        seeDZ(reply, true);
       }
     }
   };
@@ -281,6 +307,7 @@
     removeButton();
     if (window.location.pathname == "/HoleDetail") {
       getOriginalData();
+
       checkLoad().then((res) => {
         replyNodes = getReply();
         listenReplayCount();
@@ -297,6 +324,7 @@
     removeButton();
     if (window.location.pathname == "/HoleDetail") {
       getOriginalData();
+
       checkLoad().then((res) => {
         replyNodes = getReply();
         listenReplayCount();

@@ -3,7 +3,7 @@
 // @namespace    https://github.com/rktccn/treehollowEnhance
 // @supportURL   https://github.com/rktccn/treehollowEnhance
 // @homepageURL  https://github.com/rktccn/treehollowEnhance
-// @version      0.2.2
+// @version      0.3.1
 // @description  抒发森林增强,只看洞主，下载图片
 // @author       RoIce
 // @match        *://web.treehollow.net/*
@@ -14,7 +14,9 @@
 // @license      MIT
 // ==/UserScript==
 
+// 2022-4-28 更新屏蔽功能和菜单开关功能
 // 修复回到顶部的问题，应该修复了
+
 (function () {
   "use strict";
   // Your code here...

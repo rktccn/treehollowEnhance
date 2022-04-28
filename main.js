@@ -85,7 +85,6 @@
             let $notice = JSON.parse(xhr.response);
             newNoticeList = $notice.slice(0, $notice.length - noticeLength);
             noticeLength = $notice.length;
-            console.log(newNoticeList);
             if (newNoticeList.length !== 0) {
               newNoticeList.forEach((item) => {
                 if (item.type === "replyPost") {
@@ -122,6 +121,17 @@
     });
   }
 
+  // 获取一段文字中所有大写字母
+  function getUpperCase(str) {
+    let arr = [];
+    for (let i = 0; i < str.length; i++) {
+      if (str[i] === str[i].toUpperCase() && str[i] !== " ") {
+        arr.push(str[i]);
+      }
+    }
+    return arr.join("");
+  }
+
   // 检测是否加载完成,异步调用
   const checkLoad = () =>
     new Promise((resolve, reject) => {
@@ -147,13 +157,7 @@
       throw new Error("获取回复失败");
     }
 
-    // 只看洞主
-    if (data.onlyDZ) {
-      if (replyNodes?.length === 0) return;
-      for (let i = 0; i < targetNode.length; i++) {
-        seeDZ(targetNode[i], data.onlyDZ);
-      }
-    }
+    hideUser.hideReplay();
 
     return targetNode;
   };
@@ -175,105 +179,22 @@
     observer.observe(targetNode, config);
   };
 
-  // 只看洞主,只显示name为 洞主 的回帖
-  const seeDZ = (reply, hide) => {
-    let userName =
-      reply.getElementsByClassName(
-        "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
-      )[0]?.innerText ||
-      reply.getElementsByClassName("css-1dbjc4n r-dta0w2")[0]?.firstElementChild
-        ?.innerText;
-
-    if (!userName) {
-      console.log(
-        `element:${
-          reply.getElementsByClassName(
-            "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
-          ).inner ||
-          reply.getElementsByClassName("css-1dbjc4n r-dta0w2")
-            ?.firstElementChild
-        }`
-      );
-      throw new Error("没有找到用户名");
-    }
-
-    if (hide) {
-      if (userName.trim() !== "洞主") {
-        reply.parentNode.style.display = "none";
-      }
-    } else {
-      reply.parentNode.style.display = "";
-    }
-  };
-
-  // 添加按钮
-  const addButton = (text, callback = () => {}, className = "") => {
-    let pcCss = {
-      container:
-        "display: flex; justify-content: center; align-items: center; position: fixed; right: 20px; bottom: 50%;flex-direction: column;transform: translateY(30%);",
-      button:
-        "margin-bottom: 16px; background-color: #53A13C; border-radius: 5px;  cursor: pointer; display: inline-block; font-size: 17px; font-weight: 400;;;; width: 50px;line-height: 1.2; padding: 17px 14px; text-align: center; text-decoration: none; color: #fff;",
-    };
-
-    let mobileCss = {
-      container:
-        "display: flex; justify-content: center; align-items: center; position: fixed; right: 10px; bottom: 20%; flex-direction: column; transform: translateY(30%);",
-      button:
-        "margin-bottom: 16px; background-color: rgb(83, 161, 60); border-radius: 5px; cursor: pointer; display: inline-block;  font-weight: 400; width: 35px; line-height: 1.2; padding: 10px 9px; text-align: center; text-decoration: none; color: rgb(255, 255, 255);font-size: 12px;",
-    };
-
-    let container = document.getElementsByClassName("button-container")[0];
-    if (container === undefined) {
-      // 添加container
-      container = document.createElement("div");
-      container.className = `button-container ${className}`;
-      container.style.cssText = isMobile()
-        ? mobileCss.container
-        : pcCss.container;
-      document.body.appendChild(container);
-    }
-
-    const element = document.createElement("div");
-    element.innerText = text;
-    element.className = "dz-button";
-    element.style.cssText = isMobile() ? mobileCss.button : pcCss.button;
-    if (text === "只看洞主" && data.onlyDZ) {
-      element.classList.add("active");
-    }
-
-    element.addEventListener("click", callback);
-    container.appendChild(element);
-  };
-
-  // 移除按钮
-  const removeButton = () => {
-    let container = document.getElementsByClassName("button-container")[0];
-    if (container !== undefined) {
-      container.remove();
-    }
-  };
-
   // 点击只看洞主
   const clickDZ = (e) => {
     if (originalreplyList?.length === 0) return;
 
-    if (data.onlyDZ) {
-      data.onlyDZ = false;
-      e.target.classList.remove("active");
-
-      // 显示内容
-      for (let i = 0; i < replyNodes.length; i++) {
-        const reply = replyNodes[i];
-        seeDZ(reply, false);
-      }
+    if (hideUser.onlySeeUserName === "") {
+      e.target.classList.add("active");
+      e.target.innerHTML = `只看洞主`;
+      hideUser.onlySee("洞主");
     } else {
       data.onlyDZ = true;
-      e.target.classList.add("active");
-      for (let i = 0; i < replyNodes.length; i++) {
-        const reply = replyNodes[i];
-        seeDZ(reply, true);
-      }
+      e.target.classList.remove("active");
+      e.target.innerHTML = `只看${hideUser.onlySeeUserName}`;
+      hideUser.onlySee("");
     }
+
+    hideUser.hideReplay();
   };
 
   // 查看所有图片
@@ -324,18 +245,59 @@
     targetNode[0].scrollIntoView({ behavior: "smooth" });
   };
 
+  // 格式化回复
+  const formatReply = (replyNode) => {
+    let content =
+      replyNode
+        .getElementsByClassName(
+          "css-901oao r-jwli3a r-ubezar r-13uqrnb r-16dba41 r-oxtfae r-dhbnww r-1xnzce8"
+        )[0]
+        ?.innerText.trim() || "";
+    let userName = replyNode
+      .getElementsByClassName(
+        "css-901oao r-5rif8m r-ubezar r-13uqrnb r-majxgm r-oxtfae r-dhbnww r-13hce6t r-14gqq1x"
+      )[0]
+      ?.innerText.trim();
+    let reply =
+      replyNode
+        .getElementsByClassName(
+          "css-901oao css-vcwn7f r-5rif8m r-1b43r93 r-13uqrnb r-16dba41 r-oxtfae r-dhbnww r-1jkjb r-icoktb"
+        )[0]
+        ?.innerText.trim() || "";
+
+    if (!userName) {
+      throw new Error("格式化回复信息失败");
+    }
+
+    return {
+      content,
+      userName,
+      reply,
+    };
+  };
+
   // 隐藏指定用户按钮
   const hideUser = {
     className: "hide-user",
-    userList: ["Alice", "Peter"],
-    hide: (userName) => {
-      hideUser.userList.push(userName.trim());
+    userList: [], // 隐藏用户名列表
+    contentList: [], // 隐藏文本列表
+    onlySeeUserName: "", // 只看指定用户
+    isShow: false, // 是否显示列表界面
+
+    // param {string} val 文本内容
+    // param {string} type 类型 content/user
+    addToHideList: (val, type) => {
+      type === "content"
+        ? hideUser.contentList.push(val.trim())
+        : hideUser.userList.push(val.trim());
     },
-    show: (userName) => {
-      hideUser.userList = hideUser.userList.splice(
-        hideUser.userList.indexOf(userName.trim()),
-        1
-      );
+    removeFromHideList: (val, type) => {
+      type === "content"
+        ? hideUser.contentList.splice(
+            hideUser.contentList.indexOf(val.trim()),
+            1
+          )
+        : hideUser.userList.splice(hideUser.userList.indexOf(val.trim()), 1);
     },
     // 新建隐藏列表窗口
     addWindow: () => {
@@ -345,6 +307,16 @@
         "position: absolute;  z-index: 9999; background-color: rgba(0, 0, 0, 0.6); overflow-y: scroll; width: 260px; max-height: 230px; gap: 16px; padding: 16px;right: 120px;top: 30%; color: #fff;";
 
       document.body.appendChild(container);
+
+      hideUser.addUserListDOM();
+      hideUser.addContentListDOM();
+    },
+    // 移除隐藏列表窗口
+    removeWindow: () => {
+      let container = document.getElementsByClassName("hide-container")[0];
+      if (container !== undefined) {
+        container.remove();
+      }
     },
     // 新增隐藏用户列表
     addUserListDOM: () => {
@@ -356,22 +328,156 @@
 
       let userList = document.createElement("div");
       userList.style.cssText =
-        "display: grid; grid-template-columns: 1fr 1fr; gap: 16px;";
+        "display: flex; flex-direction: column;align-items: flex-start; color: #fff; fontsize: 24px; font-weight: 600; margin-bottom: 16px;";
+      userList.innerHTML = "被隐藏的用户(当前贴有效)";
       for (let i = 0; i < hideUser.userList.length; i++) {
         const userName = hideUser.userList[i];
-        let user = document.createElement("div");
-        user.innerText = userName;
-        user.style.cssText =
-          "display: inline-block; font-size: 17px; font-weight: 400;";
-        user.addEventListener("click", () => {
-          hideUser.show(userName);
-          user.remove();
+        let element = document.createElement("div");
+        element.innerText = `${userName} --- 点击移除`;
+        element.style.cssText =
+          "display: inline-block; font-size: 16px; font-weight: 400; margin-top: 8px; cursor: pointer;";
+        element.addEventListener("click", () => {
+          hideUser.removeFromHideList(userName, "user");
+          element.remove();
+          hideUser.hideReplay();
         });
-        userList.appendChild(user);
+        userList.appendChild(element);
+      }
+
+      // 输入框
+      let input = document.createElement("input");
+      input.style.cssText =
+        "width: 100%; height: 40px; border-radius: 4px; border: 1px solid #fff; margin-bottom: 16px;";
+      input.placeholder = "输入用户名首字母 如:AD";
+      input.addEventListener("keyup", (e) => {
+        if (e.keyCode === 13) {
+          let name = input.value.trim();
+          hideUser.addToHideList(name, "user");
+
+          // 添加用户名到列表
+          let element = document.createElement("div");
+          element.innerText = `${name} --- 点击移除`;
+          element.style.cssText =
+            "display: inline-block; font-size: 16px; font-weight: 400; margin-top: 8px; cursor: pointer;";
+          element.addEventListener("click", () => {
+            hideUser.removeFromHideList(name, "user");
+            element.remove();
+            hideUser.hideReplay();
+          });
+          userList.insertBefore(element, input);
+
+          hideUser.hideReplay();
+          input.value = "";
+        }
+      });
+      userList.appendChild(input);
+
+      container.appendChild(userList);
+    },
+    // 新增隐藏文本列表
+    addContentListDOM: () => {
+      let container = document.getElementsByClassName("hide-container")[0];
+      if (container === undefined) {
+        hideUser.addWindow();
+        container = document.getElementsByClassName("hide-container")[0];
+      }
+
+      let contentList = document.createElement("div");
+      contentList.style.cssText =
+        "display: flex; flex-direction: column;align-items: flex-start; color: #fff; fontsize: 24px; font-weight: 600; margin-bottom: 16px;";
+      contentList.innerHTML = "被隐藏的文本";
+      for (let i = 0; i < hideUser.contentList.length; i++) {
+        const content = hideUser.contentList[i];
+        let element = document.createElement("div");
+        element.innerText = `${content} --- 点击移除`;
+        element.style.cssText =
+          "display: inline-block; font-size: 16px; font-weight: 400; margin-top: 8px; cursor: pointer;";
+        element.addEventListener("click", () => {
+          hideUser.removeFromHideList(content, "content");
+          element.remove();
+          hideUser.hideReplay();
+        });
+        contentList.appendChild(element);
+      }
+
+      // 输入框
+      let input = document.createElement("input");
+      input.style.cssText =
+        "width: 100%; height: 40px; border-radius: 4px; border: 1px solid #fff; margin-bottom: 16px;";
+      input.placeholder = "输入文本 如:cy";
+      input.addEventListener("keyup", (e) => {
+        if (e.keyCode === 13) {
+          let content = input.value.trim();
+          hideUser.addToHideList(content, "content");
+
+          // 添加文本到列表
+          let element = document.createElement("div");
+          element.innerText = `${content} --- 点击移除`;
+          element.style.cssText =
+            "display: inline-block; font-size: 16px; font-weight: 400; margin-top: 8px; cursor: pointer;";
+          element.addEventListener("click", () => {
+            hideUser.removeFromHideList(content, "content");
+            element.remove();
+            hideUser.hideReplay();
+          });
+          contentList.insertBefore(element, input);
+          hideUser.hideReplay();
+          input.value = "";
+        }
+      });
+      contentList.appendChild(input);
+
+      container.appendChild(contentList);
+    },
+
+    // 执行只看某人
+    onlySee: (val = "洞主") => {
+      if (hideUser.onlySeeUserName === "") {
+        hideUser.onlySeeUserName = val.trim();
+      } else {
+        hideUser.onlySeeUserName = "";
+      }
+    },
+    // 检查是否需要隐藏
+    checkHide: (replyNode) => {
+      if (originalreplyList?.length === 0) return false;
+
+      let { content, userName } = formatReply(replyNode);
+
+      if (hideUser.onlySeeUserName !== "") {
+        // 只看指定用户
+        if (userName !== hideUser.onlySeeUserName) {
+          return true;
+        }
+      } else {
+        if (
+          hideUser.userList.includes(getUpperCase(userName)) ||
+          hideUser.contentList.includes(content)
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+    // 隐藏内容
+    hideReplay: () => {
+      for (let i = 0; i < replyNodes.length; i++) {
+        if (hideUser.checkHide(replyNodes[i])) {
+          replyNodes[i].style.display = "none";
+        } else {
+          replyNodes[i].style.display = "block";
+        }
       }
     },
 
-    clickHandler: (e) => {},
+    clickHandler: (e) => {
+      hideUser.isShow = !hideUser.isShow;
+      hideUser.isShow ? hideUser.addWindow() : hideUser.removeWindow();
+      hideUser.isShow
+        ? e.target.classList.add("active")
+        : e.target.classList.remove("active");
+    },
   };
 
   // 显示/隐藏button-container
@@ -401,7 +507,6 @@
       }
     },
     clickHandler: (e) => {
-      console.log("显示隐藏");
       if (showMenu.isShow) {
         showMenu.hide(e);
         showMenu.isShow = false;
@@ -410,6 +515,61 @@
         showMenu.isShow = true;
       }
     },
+  };
+
+  // button 相关
+  const button = {
+    // 添加按钮
+    addButton: (text, callback = () => {}, className = "") => {
+      let pcCss = {
+        container:
+          "display: flex; justify-content: center; align-items: center; position: fixed; right: 20px; bottom: 50%;flex-direction: column;transform: translateY(55%);",
+        button:
+          "z-index: 9999; margin-bottom: 16px; background-color: #53A13C; border-radius: 5px;  cursor: pointer; display: inline-block; font-size: 17px; font-weight: 400;;;; width: 50px;line-height: 1.2; padding: 17px 14px; text-align: center; text-decoration: none; color: #fff;",
+      };
+
+      let mobileCss = {
+        container:
+          "display: flex; justify-content: center; align-items: center; position: fixed; right: 10px; bottom: 30%; flex-direction: column; transform: translateY(30%);",
+        button:
+          "z-index: 9999; margin-bottom: 16px; background-color: rgb(83, 161, 60); border-radius: 5px; cursor: pointer; display: inline-block;  font-weight: 400; width: 35px; line-height: 1.2; padding: 10px 9px; text-align: center; text-decoration: none; color: rgb(255, 255, 255);font-size: 12px;",
+      };
+
+      let container = document.getElementsByClassName("button-container")[0];
+      if (container === undefined) {
+        // 添加container
+        container = document.createElement("div");
+        container.className = `button-container ${className}`;
+        container.style.cssText = isMobile()
+          ? mobileCss.container
+          : pcCss.container;
+        document.body.appendChild(container);
+      }
+
+      const element = document.createElement("div");
+      element.innerText = text;
+      element.className = "dz-button";
+      element.style.cssText = isMobile() ? mobileCss.button : pcCss.button;
+      if (text === "只看洞主" && data.onlyDZ) {
+        element.classList.add("active");
+      }
+
+      element.addEventListener("click", callback);
+      container.appendChild(element);
+    },
+
+    // 移除按钮
+    removeButton: () => {
+      let container = document.getElementsByClassName("button-container")[0];
+      if (container !== undefined) {
+        container.remove();
+      }
+    },
+  };
+
+  // 新建button
+  const addButton = (name, clickCallBack, className = "") => {
+    button.addButton(name, clickCallBack, className);
   };
 
   /**
@@ -437,20 +597,20 @@
 
   // 初始化数据
   const initData = () => {
-    removeButton();
+    hideUser.userList = [];
+    button.removeButton();
+    hideUser.removeWindow();
     if (window.location.pathname == "/HoleDetail") {
       getOriginalData();
-
       checkLoad().then((res) => {
         replyNodes = getReply();
         listenReplayCount();
-        removeButton();
+        button.removeButton();
 
         addButton("只看洞主", clickDZ);
         addButton("下载图片", addImgWindow);
         addButton("回到顶部", goTop);
         addButton("隐藏用户", hideUser.clickHandler);
-
         addButton("显示菜单", showMenu.clickHandler);
         showMenu.hide();
       });

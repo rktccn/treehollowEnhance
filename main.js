@@ -591,7 +591,6 @@
 
   // 初始化数据
   const initData = () => {
-    hideUser.userList = [];
     button.removeButton();
     hideUser.removeWindow();
     if (window.location.pathname == "/HoleDetail") {
@@ -608,6 +607,12 @@
         addButton("显示菜单", showMenu.clickHandler);
         showMenu.hide();
       });
+    }
+    if (
+      window.location.pathname !== "/HoleDetail" &&
+      window.location.pathname !== "/ReplyModal"
+    ) {
+      hideUser.userList = [];
     }
   };
 

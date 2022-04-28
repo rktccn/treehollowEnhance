@@ -3,16 +3,18 @@
 // @namespace    https://github.com/rktccn/treehollowEnhance
 // @supportURL   https://github.com/rktccn/treehollowEnhance
 // @homepageURL  https://github.com/rktccn/treehollowEnhance
-// @version      0.1.8
+// @version      0.2.2
 // @description  抒发森林增强,只看洞主，下载图片
 // @author       RoIce
 // @match        *://web.treehollow.net/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=greasespot.net
 // @grant        GM_addStyle
+// @grant        GM_notification
 // @run-at       document-start
 // @license      MIT
 // ==/UserScript==
 
+// 修复回到顶部的问题，应该修复了
 (function () {
   "use strict";
   // Your code here...
@@ -25,14 +27,22 @@
   // 原始数据
   let originalreplyList = [];
 
-  // 回复内容
-  let replyList = [];
+  // 通知信息
+  let noticeLength = 0; // 总通知数
+  let newNoticeList = []; // 新通知
+  let noticeList = []; // 临时储存通知
 
+  // 回复内容节点
   let replyNodes = [];
 
   // 设置
   let data = {
     onlyDZ: false,
+  };
+
+  // 检测屏幕大小，是否为移动端
+  const isMobile = () => {
+    return window.screen.width < 768;
   };
 
   // 拦截获取请求
@@ -63,7 +73,37 @@
     }
   }
 
-  // 获取原数据
+  // 监听通知请求
+  const listenNotification = () => {
+    addXMLRequestCallback(function (xhr) {
+      xhr.addEventListener("load", function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          if (xhr.responseURL.includes("user/notifications")) {
+            //do something!
+
+            // 去重，将新通知添加到通知列表
+            let $notice = JSON.parse(xhr.response);
+            newNoticeList = $notice.slice(0, $notice.length - noticeLength);
+            noticeLength = $notice.length;
+            console.log(newNoticeList);
+            if (newNoticeList.length !== 0) {
+              newNoticeList.forEach((item) => {
+                if (item.type === "replyPost") {
+                  noticeList.push({
+                    pid: item.pid,
+                    userName: item.name,
+                    content: item.content,
+                  });
+                }
+              });
+            }
+          }
+        }
+      });
+    });
+  };
+
+  // 获取回复原数据
   function getOriginalData() {
     addXMLRequestCallback(function (xhr) {
       xhr.addEventListener("load", function () {
@@ -102,7 +142,6 @@
     const targetNode = document.getElementsByClassName(
       "css-1dbjc4n r-1kihuf0 r-knv0ih r-e7q0ms"
     );
-    replyList = [];
 
     if (!targetNode) {
       throw new Error("获取回复失败");
@@ -168,23 +207,36 @@
   };
 
   // 添加按钮
-  const addButton = (text, callback) => {
+  const addButton = (text, callback = () => {}, className = "") => {
+    let pcCss = {
+      container:
+        "display: flex; justify-content: center; align-items: center; position: fixed; right: 20px; bottom: 50%;flex-direction: column;transform: translateY(30%);",
+      button:
+        "margin-bottom: 16px; background-color: #53A13C; border-radius: 5px;  cursor: pointer; display: inline-block; font-size: 17px; font-weight: 400;;;; width: 50px;line-height: 1.2; padding: 17px 14px; text-align: center; text-decoration: none; color: #fff;",
+    };
+
+    let mobileCss = {
+      container:
+        "display: flex; justify-content: center; align-items: center; position: fixed; right: 10px; bottom: 20%; flex-direction: column; transform: translateY(30%);",
+      button:
+        "margin-bottom: 16px; background-color: rgb(83, 161, 60); border-radius: 5px; cursor: pointer; display: inline-block;  font-weight: 400; width: 35px; line-height: 1.2; padding: 10px 9px; text-align: center; text-decoration: none; color: rgb(255, 255, 255);font-size: 12px;",
+    };
+
     let container = document.getElementsByClassName("button-container")[0];
     if (container === undefined) {
       // 添加container
       container = document.createElement("div");
-      container.className = "button-container";
-      container.style.cssText =
-        "display: flex; justify-content: center; align-items: center; position: fixed; right: 20px; bottom: 50%;flex-direction: column;transform: translateY(30%);";
+      container.className = `button-container ${className}`;
+      container.style.cssText = isMobile()
+        ? mobileCss.container
+        : pcCss.container;
       document.body.appendChild(container);
     }
 
     const element = document.createElement("div");
     element.innerText = text;
     element.className = "dz-button";
-    element.style.cssText =
-      "margin-bottom: 16px; background-color: #53A13C; border-radius: 5px;  cursor: pointer; display: inline-block; font-size: 17px; font-weight: 400;;;; width: 50px;line-height: 1.2; padding: 17px 14px; text-align: center; text-decoration: none; color: #fff;";
-
+    element.style.cssText = isMobile() ? mobileCss.button : pcCss.button;
     if (text === "只看洞主" && data.onlyDZ) {
       element.classList.add("active");
     }
@@ -207,19 +259,16 @@
 
     if (data.onlyDZ) {
       data.onlyDZ = false;
-
-      if (replyNodes?.length === 0) return;
+      e.target.classList.remove("active");
 
       // 显示内容
       for (let i = 0; i < replyNodes.length; i++) {
         const reply = replyNodes[i];
-        e.target.classList.remove("active");
         seeDZ(reply, false);
       }
     } else {
       data.onlyDZ = true;
       e.target.classList.add("active");
-
       for (let i = 0; i < replyNodes.length; i++) {
         const reply = replyNodes[i];
         seeDZ(reply, true);
@@ -245,7 +294,7 @@
     let container = document.createElement("div");
     container.classList = "img-container";
     container.style.cssText =
-      "position: fixed; inset: 0px; z-index: 9999; background-color: rgba(0, 0, 0, 0.6); overflow-y: scroll; display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100vw;gap: 16px;";
+      "position: fixed; inset: 0px; z-index: 9999; background-color: rgba(0, 0, 0, 0.6); overflow-y: scroll; display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100vw; height: 100vh;gap: 16px;";
 
     document.body.appendChild(container);
     let imgList = getImg();
@@ -270,23 +319,98 @@
   // 回到顶部
   const goTop = () => {
     let targetNode = document.getElementsByClassName(
-      "css-1dbjc4n r-150rngu r-eqz5dr r-16y2uox r-1wbh5a2 r-11yh6sk r-1rnoaur r-2eszeu r-1sncvnh"
+      "css-1dbjc4n r-1kihuf0 r-1x0uki6 r-e7q0ms"
     );
-    targetNode[0].scrollTo({ x: 5, y: 5, animated: true });
+    targetNode[0].scrollIntoView({ behavior: "smooth" });
   };
 
-  // removeButton();
-  // if (window.location.pathname == "/HoleDetail") {
-  //   getOriginalData();
-  //   checkLoad().then((res) => {
-  //     replyNodes = getReply();
-  //     listenReplayCount();
-  //     removeButton();
-  //     addButton("只看洞主", clickDZ);
-  //     addButton("下载图片", addImgWindow);
-  //     addButton("回到顶部", goTop);
-  //   });
-  // }
+  // 隐藏指定用户按钮
+  const hideUser = {
+    className: "hide-user",
+    userList: ["Alice", "Peter"],
+    hide: (userName) => {
+      hideUser.userList.push(userName.trim());
+    },
+    show: (userName) => {
+      hideUser.userList = hideUser.userList.splice(
+        hideUser.userList.indexOf(userName.trim()),
+        1
+      );
+    },
+    // 新建隐藏列表窗口
+    addWindow: () => {
+      let container = document.createElement("div");
+      container.className = "hide-container";
+      container.style.cssText =
+        "position: absolute;  z-index: 9999; background-color: rgba(0, 0, 0, 0.6); overflow-y: scroll; width: 260px; max-height: 230px; gap: 16px; padding: 16px;right: 120px;top: 30%; color: #fff;";
+
+      document.body.appendChild(container);
+    },
+    // 新增隐藏用户列表
+    addUserListDOM: () => {
+      let container = document.getElementsByClassName("hide-container")[0];
+      if (container === undefined) {
+        hideUser.addWindow();
+        container = document.getElementsByClassName("hide-container")[0];
+      }
+
+      let userList = document.createElement("div");
+      userList.style.cssText =
+        "display: grid; grid-template-columns: 1fr 1fr; gap: 16px;";
+      for (let i = 0; i < hideUser.userList.length; i++) {
+        const userName = hideUser.userList[i];
+        let user = document.createElement("div");
+        user.innerText = userName;
+        user.style.cssText =
+          "display: inline-block; font-size: 17px; font-weight: 400;";
+        user.addEventListener("click", () => {
+          hideUser.show(userName);
+          user.remove();
+        });
+        userList.appendChild(user);
+      }
+    },
+
+    clickHandler: (e) => {},
+  };
+
+  // 显示/隐藏button-container
+  const showMenu = {
+    isShow: false,
+    show: (e) => {
+      showMenu.isShow = true;
+      let container = document.getElementsByClassName("button-container")[0];
+      for (let i = 0; i < container.childNodes.length - 1; i++) {
+        const element = container.childNodes[i];
+        element.style.transform = "translateX(0)";
+      }
+      if (e) {
+        e.target.innerText = "关闭菜单";
+      }
+    },
+    hide: (e) => {
+      showMenu.isShow = false;
+      let container = document.getElementsByClassName("button-container")[0];
+      for (let i = 0; i < container.childNodes.length - 1; i++) {
+        const element = container.childNodes[i];
+        element.style.transform = "translateX(100%)";
+        element.style.transition = "all 0.3s ease-in-out";
+      }
+      if (e) {
+        e.target.innerText = "显示菜单";
+      }
+    },
+    clickHandler: (e) => {
+      console.log("显示隐藏");
+      if (showMenu.isShow) {
+        showMenu.hide(e);
+        showMenu.isShow = false;
+      } else {
+        showMenu.show(e);
+        showMenu.isShow = true;
+      }
+    },
+  };
 
   /**
    * 重写history的pushState和replaceState
@@ -311,42 +435,38 @@
     };
   }
 
+  // 初始化数据
+  const initData = () => {
+    removeButton();
+    if (window.location.pathname == "/HoleDetail") {
+      getOriginalData();
+
+      checkLoad().then((res) => {
+        replyNodes = getReply();
+        listenReplayCount();
+        removeButton();
+
+        addButton("只看洞主", clickDZ);
+        addButton("下载图片", addImgWindow);
+        addButton("回到顶部", goTop);
+        addButton("隐藏用户", hideUser.clickHandler);
+
+        addButton("显示菜单", showMenu.clickHandler);
+        showMenu.hide();
+      });
+    }
+  };
+
   //修改原始定义
   history.pushState = wrapState("pushState");
   history.replaceState = wrapState("replaceState");
 
   // 监听自定义的事件
   window.addEventListener("pushState", function (e) {
-    removeButton();
-
-    if (window.location.pathname == "/HoleDetail") {
-      getOriginalData();
-
-      checkLoad().then((res) => {
-        replyNodes = getReply();
-        listenReplayCount();
-        removeButton();
-
-        addButton("只看洞主", clickDZ);
-        addButton("下载图片", addImgWindow);
-        addButton("回到顶部", goTop);
-      });
-    }
+    initData();
   });
 
   window.addEventListener("replaceState", function (e) {
-    removeButton();
-    if (window.location.pathname == "/HoleDetail") {
-      getOriginalData();
-
-      checkLoad().then((res) => {
-        replyNodes = getReply();
-        listenReplayCount();
-        removeButton();
-        addButton("只看洞主", clickDZ);
-        addButton("下载图片", addImgWindow);
-        addButton("回到顶部", goTop);
-      });
-    }
+    initData();
   });
 })();

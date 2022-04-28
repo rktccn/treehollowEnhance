@@ -35,11 +35,6 @@
   // 回复内容节点
   let replyNodes = [];
 
-  // 设置
-  let data = {
-    onlyDZ: false,
-  };
-
   // 检测屏幕大小，是否为移动端
   const isMobile = () => {
     return window.screen.width < 768;
@@ -188,7 +183,6 @@
       e.target.innerHTML = `只看洞主`;
       hideUser.onlySee("洞主");
     } else {
-      data.onlyDZ = true;
       e.target.classList.remove("active");
       e.target.innerHTML = `只看${hideUser.onlySeeUserName}`;
       hideUser.onlySee("");
@@ -550,9 +544,6 @@
       element.innerText = text;
       element.className = "dz-button";
       element.style.cssText = isMobile() ? mobileCss.button : pcCss.button;
-      if (text === "只看洞主" && data.onlyDZ) {
-        element.classList.add("active");
-      }
 
       element.addEventListener("click", callback);
       container.appendChild(element);
@@ -594,6 +585,9 @@
       return wrapper;
     };
   }
+  //修改原始定义
+  history.pushState = wrapState("pushState");
+  history.replaceState = wrapState("replaceState");
 
   // 初始化数据
   const initData = () => {
@@ -616,10 +610,6 @@
       });
     }
   };
-
-  //修改原始定义
-  history.pushState = wrapState("pushState");
-  history.replaceState = wrapState("replaceState");
 
   // 监听自定义的事件
   window.addEventListener("pushState", function (e) {

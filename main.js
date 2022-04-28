@@ -593,6 +593,7 @@
   const initData = () => {
     button.removeButton();
     hideUser.removeWindow();
+    hideUser.onlySeeUserName = "";
     if (window.location.pathname == "/HoleDetail") {
       getOriginalData();
       checkLoad().then((res) => {
